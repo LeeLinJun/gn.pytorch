@@ -16,17 +16,19 @@ class EdgeBlock(nn.Module):
         super(EdgeBlock, self).__init__()
         self.f_e = nn.Sequential(
             nn.Linear(graph_feat_size + 2 * node_feat_size + edge_feat_size, 256),
-            nn.ReLU(inplace = True),
-            nn.Linear(256,256),
-            nn.ReLU(inplace = True),
+            nn.ReLU(inplace=True),
             nn.Linear(256, 256),
             nn.ReLU(inplace=True),
-            nn.Linear(256,edge_feat_size),
+            nn.Linear(256, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, edge_feat_size),
         )
+
     def forward(self, g, ns, nr, e):
-        x = torch.cat([g, ns, nr, e], dim = -1)
+        x = torch.cat([g, ns, nr, e], dim=-1)
         return self.f_e(x)
-    
+
+
 class NodeBlock(nn.Module):
     def __init__(self, graph_feat_size, node_feat_size, edge_feat_size):
         super(NodeBlock, self).__init__()
@@ -127,6 +129,7 @@ def subtract(G, H):
 
     return G_out
 
+
 class Normalizer:
     def __init__(self):
         self.count = 0
@@ -161,8 +164,8 @@ class Normalizer:
                 self.G.nodes[node]['feat_var'] = self.momentum * self.G.nodes[node]['feat_var'] + (1-self.momentum) * torch.var(G.nodes[node]['feat'], dim=0, keepdim=True)
 
             for edge in G.edges():
-                self.G[edge[0]][edge[1]]['feat_mean'] =  self.momentum * self.G[edge[0]][edge[1]]['feat_mean'] + (1-self.momentum) * torch.mean(G[edge[0]][edge[1]]['feat'], dim=0, keepdim=True)
-                self.G[edge[0]][edge[1]]['feat_var'] = self.momentum *  self.G[edge[0]][edge[1]]['feat_var'] + (1-self.momentum) * torch.var(G[edge[0]][edge[1]]['feat'], dim=0, keepdim=True)
+                self.G[edge[0]][edge[1]]['feat_mean'] = self.momentum * self.G[edge[0]][edge[1]]['feat_mean'] + (1-self.momentum) * torch.mean(G[edge[0]][edge[1]]['feat'], dim=0, keepdim=True)
+                self.G[edge[0]][edge[1]]['feat_var'] = self.momentum * self.G[edge[0]][edge[1]]['feat_var'] + (1-self.momentum) * torch.var(G[edge[0]][edge[1]]['feat'], dim=0, keepdim=True)
 
         #print(self.G.nodes[0]['feat_var'])
         self.count += 1
@@ -186,7 +189,7 @@ class Normalizer:
     def inormalize(self, H):
         G_out = H.copy()
         for node in G_out.nodes():
-            G_out.nodes[node]['feat'] = G_out.nodes[node]['feat']  *  (torch.sqrt(self.G.nodes[node]['feat_var']) + 1e-6).detach() +  self.G.nodes[node]['feat_mean']
+            G_out.nodes[node]['feat'] = G_out.nodes[node]['feat'] * (torch.sqrt(self.G.nodes[node]['feat_var']) + 1e-6).detach() +  self.G.nodes[node]['feat_mean']
 
         return G_out
 
@@ -211,13 +214,13 @@ class FFGN(nn.Module):
     def forward(self, G_in):
         G = G_in.copy()
         G = self.GN1(G)
-        #Graph concatenate
+        # Graph concatenate
         G.graph['feat'] = torch.cat([G.graph['feat'], G_in.graph['feat']], dim=-1)
         for node in G.nodes():
             G.nodes[node]['feat'] = torch.cat([G.nodes[node]['feat'], G_in.nodes[node]['feat']], dim = -1)
         for edge in G.edges():
                 G[edge[0]][edge[1]]['feat'] = torch.cat([G[edge[0]][edge[1]]['feat'], G_in[edge[0]][edge[1]]['feat']],
-                                                         dim = -1)
+                                                         dim=-1)
         G = self.GN2(G)
 
         for node in G.nodes():
@@ -225,11 +228,12 @@ class FFGN(nn.Module):
         #use a linear layer to change back to original node feature size
         return G
 
+
 if __name__ == "__main__":
-    G1 = nx.erdos_renyi_graph(10,0.3).to_directed()
-    #nx.draw(G1)
-    #plt.show()
-    init_graph_features(G1, _graph_feat_size, _node_feat_size, _edge_feat_size, cuda = True)
+    G1 = nx.erdos_renyi_graph(10, 0.3).to_directed()
+    # nx.draw(G1)
+    # plt.show()
+    init_graph_features(G1, _graph_feat_size, _node_feat_size, _edge_feat_size, cuda=True)
     gn = FFGN(_graph_feat_size, _node_feat_size, _edge_feat_size).cuda()
     G_out = gn(G1)
     torch.sum(G_out.graph['feat'] ** 2).backward()

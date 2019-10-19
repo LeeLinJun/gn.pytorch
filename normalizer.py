@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 from tqdm import tqdm
 from dataset import SwimmerDataset
-from utils import *
+from utils import init_graph_features
 
 if __name__ == "__main__":
     dset = SwimmerDataset('swimmer.npy')
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     edge_feat_size = 3
     graph_feat_size = 10
     gn = FFGN(graph_feat_size, node_feat_size, edge_feat_size).cuda()
-    optimizer = optim.Adam(gn.parameters(), lr = 1e-3)
+    optimizer = optim.Adam(gn.parameters(), lr=1e-3)
     savedir = os.path.join('./logs','runs',
         datetime.now().strftime('%B%d_%H:%M:%S'))
     writer = SummaryWriter(savedir)
@@ -39,10 +39,10 @@ if __name__ == "__main__":
             if use_cuda:
                 action, delta_state, last_state = action.cuda(), delta_state.cuda(), last_state.cuda()
 
-            init_graph_features(G1, graph_feat_size, node_feat_size, edge_feat_size, cuda=True, bs = 200)
-            load_graph_features(G1, action, last_state, None, noise = 0, bs=200, norm = True)
+            init_graph_features(G1, graph_feat_size, node_feat_size, edge_feat_size, cuda=True, bs=200)
+            load_graph_features(G1, action, last_state, None, noise=0, bs=200, norm=True)
             in_normalizer.input(G1)
-            load_graph_features(G1, action, delta_state, None, noise = 0, bs=200, norm = False)
+            load_graph_features(G1, action, delta_state, None, noise=0, bs=200, norm=False)
             out_normalizer.input(G1)
 
     '''
@@ -59,4 +59,6 @@ if __name__ == "__main__":
             load_graph_features(G1, action, delta_state, bs=200)
             out_normalizer.normalize(G1)
     '''
-    torch.save({"in_normalizer":in_normalizer, "out_normalizer":out_normalizer}, 'normalize.pth')
+    torch.save({"in_normalizer": in_normalizer,
+                "out_normalizer": out_normalizer},
+               'normalize.pth')

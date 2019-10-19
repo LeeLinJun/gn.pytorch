@@ -16,7 +16,7 @@ class SwimmerDataset(data.Dataset):
         #print(episode, frame)
 
         last_state = self.data[episode, frame - 1,5:]
-        this_state = self.data[episode, frame,5:]
+        this_state = self.data[episode, frame, 5:]
         action = self.data[episode, frame, :5]
 
         pos = last_state[5:5 + 18].reshape(6, 3)
@@ -38,10 +38,10 @@ class SwimmerDataset(data.Dataset):
         delta_states = []
         last_states = []
         
-        for frame in range(10,110):
+        for frame in range(10, 110):
         
-            last_state = self.data[episode, frame - 1,5:]
-            this_state = self.data[episode, frame,5:]
+            last_state = self.data[episode, frame - 1, 5:]
+            this_state = self.data[episode, frame, 5:]
             action = self.data[episode, frame, :5]
 
             pos = last_state[5:5 + 18].reshape(6, 3)
