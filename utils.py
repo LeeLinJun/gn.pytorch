@@ -78,7 +78,7 @@ def build_graph_loss2(G, H):
     return loss
 
 
-def get_graph_loss(G, H, dim_pose=2, dim_vel=2,):
+def get_graph_loss(G, H, dim_pose=2, dim_vel=2):
     loss = 0
     n_nodes = len(G)
     dim_pose //= n_nodes
@@ -92,6 +92,7 @@ def get_graph_loss(G, H, dim_pose=2, dim_vel=2,):
                             dim_vel]) ** 2)
 
     loss /= n_nodes
+    loss /= 2e-4
     return loss
 
 def init_graph_features(G, graph_feat_size, node_feat_size, edge_feat_size, bs=1, cuda=False):
@@ -107,6 +108,7 @@ def init_graph_features(G, graph_feat_size, node_feat_size, edge_feat_size, bs=1
             G.nodes[node]['feat'] = torch.zeros(bs, node_feat_size)
         for edge in G.edges():
             G[edge[0]][edge[1]]['feat'] = torch.zeros(bs, edge_feat_size)
+    return G
 
 
 def detach(G):
@@ -156,10 +158,14 @@ def load_graph_features_sst_acrobot(G, action, last_state, delta_state,
     if noise > 0:
         delta_state[:, dim_pose:dim_pose+dim_vel] += vel_noise\
             .view(-1, dim_vel)
+    
+    node_dim_pose = dim_pose // n_node
+    node_vel_pose = dim_vel // n_node
+
 
     for node in G.nodes():
-        G.nodes[node]['feat'][:, :dim_pose] = pos[:, node]
-        G.nodes[node]['feat'][:, dim_pose:dim_pose+dim_vel] = vel[:, node]
+        G.nodes[node]['feat'][:, :node_dim_pose] = pos[:, node]
+        G.nodes[node]['feat'][:, node_dim_pose:node_dim_pose+node_vel_pose] = vel[:, node]
 
     for edge in G.edges():
         if edge[0] < edge[1]:

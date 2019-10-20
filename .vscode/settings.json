@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "/home/lilinjun/.conda/envs/robotics/bin/python",
+    "python.pythonPath": "/opt/conda/bin/python",
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true

@@ -53,49 +53,54 @@ if __name__ == "__main__":
     out_normalizer = normalizers['out_normalizer']
     std = in_normalizer.get_std()
     for epoch in range(300):
-        for i, data in tqdm(enumerate(dl), total=len(dset) / 200 + 1):
-            optimizer.zero_grad()
-            action, delta_state, last_state = data
-            action, delta_state, last_state = action.float(),\
-                delta_state.float(), last_state.float()
-            if use_cuda:
-                action, delta_state, last_state = action.cuda(),\
-                    delta_state.cuda(), last_state.cuda()
+        with tqdm(dl, total=len(dset) / 200 + 1) as pbar:
+            for data in pbar:
+                optimizer.zero_grad()
+                action, delta_state, last_state = data
+                action, delta_state, last_state = action.float(),\
+                    delta_state.float(), last_state.float()
+                if use_cuda:
+                    action, delta_state, last_state = action.cuda(),\
+                        delta_state.cuda(), last_state.cuda()
 
-            init_graph_features(G1, graph_feat_size, node_feat_size,
-                                edge_feat_size, cuda=True, bs=200)
-            load_graph_features(G1, action, last_state, delta_state, bs=200,
-                                noise=0, std=std)
-            G_out = gn(in_normalizer.normalize(G1))
+                init_graph_features(G1, graph_feat_size, node_feat_size,
+                                    edge_feat_size, cuda=True, bs=200)
+                load_graph_features(G1, action, last_state, delta_state, bs=200,
+                                    noise=0.003, std=std)
+                G_out = gn(in_normalizer.normalize(G1))
 
-            init_graph_features(G_target, graph_feat_size, node_feat_size,
-                                edge_feat_size, cuda=True, bs=200)
-            load_graph_features(G_target, action, delta_state, None, bs=200,
-                                norm=False, noise=0)
-            G_target_normalized = out_normalizer.normalize(G_target)
+                init_graph_features(G_target, graph_feat_size, node_feat_size,
+                                    edge_feat_size, cuda=True, bs=200)
+                load_graph_features(G_target, action, delta_state, None, bs=200,
+                                    norm=False, noise=0)
+                #G_target_normalized = out_normalizer.normalize(G_target)
 
-            loss = get_graph_loss(G_out, G_target_normalized)
-            loss.backward()
-            if step % 10 == 0:
-                writer.add_scalar('loss', loss.data.item(), step)
-            step += 1
-            for param in gn.parameters():
-                if param.grad is not None:
-                    param.grad.clamp_(-3, 3)
+                loss = get_graph_loss(G_out, G_target)#G_target_normalized)
+                loss.backward()
+                if step % 10 == 1:
+                    writer.add_scalar('loss', loss.data.item(), step)
+                    pbar.set_postfix({'loss' : '{0:1.5f}'.format(loss.data.item())})
+                step += 1
+                for param in gn.parameters():
+                    if param.grad is not None:
+                        param.grad.clamp_(-3, 3)
 
-            optimizer.step()
-            schedular.step()
-            if step % 10000 == 0:
-                torch.save(
-                    gn.state_dict(),
-                    savedir +
-                    '/model_{}.pth'.format(step))
+                optimizer.step()
+                schedular.step()
+                if step % 10 == 0:
+                    torch.save(
+                        gn.state_dict(),
+                        savedir +
+                        '/model_{}.pth'.format(step))
+
+                pbar.update(1)
+
         itr = 0
         sum_loss = 0
 
         # evaluation loop, done every epoch
 
-        for i, data in tqdm(enumerate(dl_eval)):
+        for data in tqdm(dl_eval):
             action, delta_state, last_state = data
             action, delta_state, last_state = action.float(), \
                 delta_state.float(), last_state.float()
@@ -113,9 +118,9 @@ if __name__ == "__main__":
                                 edge_feat_size, cuda=True, bs=200)
             load_graph_features(G_target, action, delta_state, None, bs=200,
                                 norm=False, noise=0)
-            G_target_normalized = out_normalizer.normalize(G_target)
+            #G_target_normalized = out_normalizer.normalize(G_target)
 
-            loss = get_graph_loss(G_out, G_target_normalized)
+            loss = get_graph_loss(G_out, G_target)#G_target_normalized)
             sum_loss += loss.data.item()
             itr += 1
 

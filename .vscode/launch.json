@@ -10,9 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "linux": {
-                "pythonPath": "./script.sh"
-            },
+            // "linux": {"pythonPath": "./script.sh"},
             // "args": ["10"]
             "args": ["--model",""]
         }

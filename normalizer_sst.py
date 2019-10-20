@@ -42,9 +42,9 @@ if __name__ == "__main__":
                 action, delta_state, last_state = action.cuda(),\
                     delta_state.cuda(), last_state.cuda()
 
-            init_graph_features(G1, graph_feat_size, node_feat_size,
+            G1 = init_graph_features(G1, graph_feat_size, node_feat_size,
                                 edge_feat_size, cuda=True, bs=200)
-            load_graph_features(G1, action, last_state, None, noise=0,
+            G1 = load_graph_features(G1, action, last_state, None, noise=0,
                                 bs=200, norm=True)
             in_normalizer.input(G1)
             load_graph_features(G1, action, delta_state, None, noise=0,
