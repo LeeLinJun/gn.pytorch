@@ -12,8 +12,8 @@ node_feat_size = 2
 edge_feat_size = 3
 graph_feat_size = 10
 gn = FFGN(graph_feat_size, node_feat_size, edge_feat_size).cuda()
-gn.load_state_dict(torch.load('model0_1_.pth'))
-normalizers = torch.load('normalized/acrobot.pth')
+gn.load_state_dict(torch.load('model0.05.pth'))
+normalizers = torch.load('normalized/acrobot0.05.pth')
 in_normalizer = normalizers['in_normalizer']
 out_normalizer = normalizers['out_normalizer']
 
@@ -58,6 +58,14 @@ for i in range(1, maxframe+1):
         gn_traj[i, [node, node+2]] = G_out.nodes[node]['feat'].cpu().detach()\
             .numpy()
     gn_traj[i] += last_state.numpy()[0]
+    pos, vel = gn_traj[i, [0, 1]], gn_traj[i, [2, 3]]
+    pos[pos > np.pi] -= np.pi*2
+    pos[pos < -np.pi] += np.pi*2
+    vel[vel > model.MAX_V_1] = model.MAX_V_1
+    vel[vel < model.MIN_V_1] = model.MIN_V_1
+    gn_traj[i, [0, 1]] = pos
+    gn_traj[i, [2, 3]] = vel
+
     last_state = torch.tensor([gn_traj[i]])
 
 plt.subplot(121)

@@ -35,8 +35,8 @@ class Acrobot_GN(Acrobot):
         self.graph_feat_size = 10
         self.gn = FFGN(self.graph_feat_size, self.node_feat_size,
                        self.edge_feat_size).cuda()
-        self.gn.load_state_dict(torch.load('model0_1_.pth'))
-        normalizers = torch.load('normalized/acrobot.pth')
+        self.gn.load_state_dict(torch.load('model0.05.pth'))
+        normalizers = torch.load('normalized/acrobot0.05.pth')
         self.in_normalizer = normalizers['in_normalizer']
         self.out_normalizer = normalizers['out_normalizer']
 
