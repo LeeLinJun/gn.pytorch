@@ -17,12 +17,17 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='',  help='model path')
+    parser.add_argument('--train_data', type=str)
+    parser.add_argument('--test_data', type=str)
+    parser.add_argument('--normalizer', type=str)
+    parser.add_argument('--tstep', type=float)
+
     opt = parser.parse_args()
     print(opt)
 
-    dset = SSTDataset('data/acrobot.npy',
+    dset = SSTDataset(opt.train_data,
                       dim_control=1, dim_state=4)
-    dset_eval = SSTDataset('data/acrobot_test.npy',
+    dset_eval = SSTDataset(opt.test_data,
                            dim_control=1, dim_state=4)
     use_cuda = True
 
@@ -48,7 +53,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(savedir)
     step = 0
 
-    normalizers = torch.load('normalized/acrobot.pth')
+    normalizers = torch.load(opt.normalizer)
     in_normalizer = normalizers['in_normalizer']
     out_normalizer = normalizers['out_normalizer']
     std = in_normalizer.get_std()
@@ -66,16 +71,17 @@ if __name__ == "__main__":
                 init_graph_features(G1, graph_feat_size, node_feat_size,
                                     edge_feat_size, cuda=True, bs=200)
                 load_graph_features(G1, action, last_state, delta_state, bs=200,
-                                    noise=0.003, std=std)
+                                    noise=3e-5, std=std)
                 G_out = gn(in_normalizer.normalize(G1))
 
                 init_graph_features(G_target, graph_feat_size, node_feat_size,
                                     edge_feat_size, cuda=True, bs=200)
                 load_graph_features(G_target, action, delta_state, None, bs=200,
                                     norm=False, noise=0)
-                #G_target_normalized = out_normalizer.normalize(G_target)
+                #G_target_normalized = out_normalizer.normalize(G_target, False)
 
-                loss = get_graph_loss(G_out, G_target)#G_target_normalized)
+                #loss = get_graph_loss(out_normalizer.normalize(G_out, False), G_target_normalized)
+                loss = get_graph_loss(G_out, G_target, opt.tstep)
                 loss.backward()
                 if step % 10 == 1:
                     writer.add_scalar('loss', loss.data.item(), step)
@@ -87,7 +93,7 @@ if __name__ == "__main__":
 
                 optimizer.step()
                 schedular.step()
-                if step % 10 == 0:
+                if step % 10000 == 0:
                     torch.save(
                         gn.state_dict(),
                         savedir +
@@ -118,9 +124,10 @@ if __name__ == "__main__":
                                 edge_feat_size, cuda=True, bs=200)
             load_graph_features(G_target, action, delta_state, None, bs=200,
                                 norm=False, noise=0)
-            #G_target_normalized = out_normalizer.normalize(G_target)
+            #G_target_normalized = out_normalizer.normalize(G_target, False)
 
-            loss = get_graph_loss(G_out, G_target)#G_target_normalized)
+            #loss = get_graph_loss(out_normalizer.normalize(G_out, False), G_target_normalized)
+            loss = get_graph_loss(G_out, G_target, opt.tstep)
             sum_loss += loss.data.item()
             itr += 1
 

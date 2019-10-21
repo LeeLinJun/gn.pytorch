@@ -3,6 +3,7 @@ from scipy import interpolate
 from tqdm import tqdm
 import sys
 from sparse_rrt.systems import Acrobot
+import argparse
 
 # Load one task:
 # env = swimmer.swimmer6(time_limit=4)
@@ -13,9 +14,17 @@ from sparse_rrt.systems import Acrobot
 #  env = suite.load(domain_name, task_name)
 
 # Step through an episode and print out reward, discount and observation.
+parser = argparse.ArgumentParser()
+parser.add_argument('--max_frame', type=int, default=200,  help='model path')
+parser.add_argument('--max_episodes', type=int)
+parser.add_argument('--time_step', type=float)
+parser.add_argument('--train_data', type=str)
 
-max_frame = 200
-max_episodes = int(sys.argv[1])
+opt = parser.parse_args()
+
+
+max_frame = opt.max_frame
+max_episodes = opt.max_episodes
 dim_state = 4  # theta and omega *2
 dim_control = 1  # torque
 dim_pose = 2  # x and y *2
@@ -53,10 +62,10 @@ for idx in tqdm(range(len_dataset)):
         # from IPython import embed; embed()
         new_state = model.propagate(start_state, action,
                                     1,  # np.random.randint(low=20, high=200),
-                                    0.002)
+                                    opt.time_step)
         dataset[idx, i, :dim_control] = action
         dataset[idx, i, dim_control:dim_control+dim_state] = new_state
         start_state = new_state
 
 
-np.save(sys.argv[2], dataset)
+np.save(opt.train_data, dataset)

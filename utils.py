@@ -78,7 +78,7 @@ def build_graph_loss2(G, H):
     return loss
 
 
-def get_graph_loss(G, H, dim_pose=2, dim_vel=2):
+def get_graph_loss(G, H, tstep, dim_pose=2, dim_vel=2, ):
     loss = 0
     n_nodes = len(G)
     dim_pose //= n_nodes
@@ -92,7 +92,7 @@ def get_graph_loss(G, H, dim_pose=2, dim_vel=2):
                             dim_vel]) ** 2)
 
     loss /= n_nodes
-    loss /= 2e-4
+    loss /= tstep
     return loss
 
 def init_graph_features(G, graph_feat_size, node_feat_size, edge_feat_size, bs=1, cuda=False):

@@ -174,15 +174,16 @@ class Normalizer:
     def get(self):
         return self.G
 
-    def normalize(self, H):
+    def normalize(self, H, mode_in=True):
         G_out = H.copy()
+        if mode_in:
+            G_out.graph['feat'] = (G_out.graph['feat'] - self.G.graph['feat_mean']) / (torch.sqrt(self.G.graph['feat_var']) + 1e-6).detach()
+            for edge in G_out.edges():
+                G_out[edge[0]][edge[1]]['feat'] = (G_out[edge[0]][edge[1]]['feat'] - self.G[edge[0]][edge[1]]['feat_mean']) / (torch.sqrt(self.G[edge[0]][edge[1]]['feat_var']) + 1e-6).detach()
 
-        G_out.graph['feat'] = (G_out.graph['feat'] - self.G.graph['feat_mean']) / (torch.sqrt(self.G.graph['feat_var']) + 1e-6).detach()
         for node in G_out.nodes():
             G_out.nodes[node]['feat'] = (G_out.nodes[node]['feat'] - self.G.nodes[node]['feat_mean']) / (torch.sqrt(self.G.nodes[node]['feat_var']) + 1e-6).detach()
-        for edge in G_out.edges():
-            G_out[edge[0]][edge[1]]['feat'] = (G_out[edge[0]][edge[1]]['feat'] - self.G[edge[0]][edge[1]]['feat_mean']) / (torch.sqrt(self.G[edge[0]][edge[1]]['feat_var']) + 1e-6).detach()
-
+       
         #print(G_out.nodes[0]['feat'])
         return G_out
 
