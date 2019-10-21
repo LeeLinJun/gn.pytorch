@@ -126,9 +126,9 @@ if __name__ == "__main__":
                                 edge_feat_size, cuda=True, bs=200)
             load_graph_features(G_target, action, delta_state, None, bs=200,
                                 norm=False, noise=0)
-            #G_target_normalized = out_normalizer.normalize(G_target, False)
+            #  G_target_normalized = out_normalizer.normalize(G_target, False)
 
-            #loss = get_graph_loss(out_normalizer.normalize(G_out, False), G_target_normalized)
+            #  loss = get_graph_loss(out_normalizer.normalize(G_out, False), G_target_normalized)
             loss = get_graph_loss(G_out, G_target, opt.tstep)
             sum_loss += loss.data.item()
             itr += 1
