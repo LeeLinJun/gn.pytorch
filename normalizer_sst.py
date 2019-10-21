@@ -9,10 +9,11 @@ import os
 from tqdm import tqdm
 from dataset import SSTDataset
 from utils import load_graph_features_sst_acrobot as load_graph_features
+import sys
 
 if __name__ == "__main__":
     print("loading...")
-    dset = SSTDataset("./data/acrobot.npy",
+    dset = SSTDataset(sys.argv[1],
                       dim_control=1, dim_state=4)
     use_cuda = True
     dl = DataLoader(dset, batch_size=200, num_workers=0, drop_last=True)
@@ -53,4 +54,4 @@ if __name__ == "__main__":
 
     torch.save({"in_normalizer": in_normalizer,
                 "out_normalizer": out_normalizer},
-               "normalized/acrobot.pth")
+                sys.argv[2])
