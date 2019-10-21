@@ -53,10 +53,10 @@ if __name__ == "__main__":
     writer = SummaryWriter(savedir)
     step = 0
 
-    normalizers = torch.load(opt.normalizer)
-    in_normalizer = normalizers['in_normalizer']
-    out_normalizer = normalizers['out_normalizer']
-    std = in_normalizer.get_std()
+    # normalizers = torch.load(opt.normalizer)
+    # in_normalizer = normalizers['in_normalizer']
+    # out_normalizer = normalizers['out_normalizer']
+    #std = in_normalizer.get_std()
     for epoch in range(300):
         with tqdm(dl, total=len(dset) / 200 + 1) as pbar:
             for data in pbar:
@@ -71,8 +71,9 @@ if __name__ == "__main__":
                 init_graph_features(G1, graph_feat_size, node_feat_size,
                                     edge_feat_size, cuda=True, bs=200)
                 load_graph_features(G1, action, last_state, delta_state, bs=200,
-                                    noise=3e-5, std=std)
-                G_out = gn(in_normalizer.normalize(G1))
+                                    noise=0, std=None)
+                gn.train()
+                G_out = gn(G1)#gn(in_normalizer.normalize(G1))
 
                 init_graph_features(G_target, graph_feat_size, node_feat_size,
                                     edge_feat_size, cuda=True, bs=200)
@@ -118,7 +119,8 @@ if __name__ == "__main__":
                                 edge_feat_size, cuda=True, bs=200)
             load_graph_features(G1, action, last_state, delta_state,
                                 bs=200, noise=0)
-            G_out = gn(in_normalizer.normalize(G1))
+            gn.eval()
+            G_out = gn(G1)#gn(in_normalizer.normalize(G1))
 
             init_graph_features(G_target, graph_feat_size, node_feat_size,
                                 edge_feat_size, cuda=True, bs=200)
