@@ -20,7 +20,7 @@ out_normalizer = normalizers['out_normalizer']
 model = Acrobot()
 
 
-action = [0.5]
+action = [0.]
 
 start_state = np.array([np.random.uniform(low=model.MIN_ANGLE,
                                           high=model.MAX_ANGLE),
@@ -30,7 +30,7 @@ start_state = np.array([np.random.uniform(low=model.MIN_ANGLE,
                                          high=model.MAX_V_1),
                        np.random.uniform(low=model.MIN_V_2,
                                          high=model.MAX_V_2)])
-maxframe = 20
+maxframe = 15
 baseline = np.zeros((maxframe+1, 4))
 baseline[0, :] = start_state
 last_state = start_state.copy()

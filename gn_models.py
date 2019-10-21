@@ -15,7 +15,6 @@ class EdgeBlock(nn.Module):
     def __init__(self, graph_feat_size, node_feat_size, edge_feat_size):
         super(EdgeBlock, self).__init__()
         self.f_e = nn.Sequential(
-            nn.BatchNorm1d(num_features=graph_feat_size + 2 * node_feat_size + edge_feat_size),
             nn.Linear(graph_feat_size + 2 * node_feat_size + edge_feat_size, 256),
             nn.ReLU(inplace=True),
             nn.Linear(256, 256),
@@ -34,7 +33,6 @@ class NodeBlock(nn.Module):
     def __init__(self, graph_feat_size, node_feat_size, edge_feat_size):
         super(NodeBlock, self).__init__()
         self.f_n = nn.Sequential(
-            nn.BatchNorm1d(num_features=graph_feat_size + node_feat_size + edge_feat_size),
             nn.Linear(graph_feat_size + node_feat_size + edge_feat_size, 256),
             nn.ReLU(inplace = True),
             nn.Linear(256, 256),
@@ -52,7 +50,6 @@ class GraphBlock(nn.Module):
     def __init__(self, graph_feat_size, node_feat_size, edge_feat_size):
         super(GraphBlock, self).__init__()
         self.f_g = nn.Sequential(
-            nn.BatchNorm1d(num_features=graph_feat_size + node_feat_size + edge_feat_size),
             nn.Linear(graph_feat_size + node_feat_size + edge_feat_size, 256),
             nn.ReLU(inplace = True),
             nn.Linear(256, 256),

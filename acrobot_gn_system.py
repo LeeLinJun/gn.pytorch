@@ -88,20 +88,42 @@ class Acrobot_GN(Acrobot):
 if __name__ == '__main__':
     model = Acrobot_GN()  # Acrobot()  #
     system = Acrobot()
-    planner = SST(
-        state_bounds=model.get_state_bounds(),
-        control_bounds=model.get_control_bounds(),
-        distance=model.distance_computer(),
-        start_state=np.array([0., 0., 0., 0.]),
-        goal_state=np.array([1.57, 1.57, 0., 0.]),
-        goal_radius=2.0,
-        random_seed=0,
-        sst_delta_near=1.,
-        sst_delta_drain=0.5,
-    )
-    for iteration in range(5000):
-        planner.step(model, 2, 20, 0.05)
-        if iteration % 100 == 0:
-            solution = planner.get_solution()
-            print("Solution: %s, Number of nodes: %s" %
-                  (planner.get_solution(), planner.get_number_of_nodes()))
+
+    start_state = np.array([0., 0., 0., 0.])
+    goal_state = np.array([1.57, 1.57, 0., 0.])
+    curr_state = start_state
+
+    while True:
+        print("Current state:", curr_state)
+        planner = SST(
+            state_bounds=model.get_state_bounds(),
+            control_bounds=model.get_control_bounds(),
+            distance=model.distance_computer(),
+            start_state=curr_state,
+            goal_state=goal_state,
+            goal_radius=2.0,
+            random_seed=0,
+            sst_delta_near=1.,
+            sst_delta_drain=0.5,
+        )
+        for iteration in range(10000):
+            planner.step(model, 10, 15, 0.05)
+            if iteration % 100 == 0:
+                solution = planner.get_solution()
+                print("Solution: %s, Number of nodes: %s" %
+                      (solution, planner.get_number_of_nodes()))
+                if solution is not None:
+
+                    break
+        controls = solution[1]  # path,control,cost
+        for i in range(len(controls)):
+            curr_state = model.propagate(curr_state, controls[i],
+                                         1,
+                                         0.05)
+            if np.linalg.norm(curr_state-solution[0][i]) > 10.0:
+                print("mismatch at %d steps" % i)
+                break
+
+        if np.linalg.norm(curr_state-goal_state) < 2.0:
+            print("sucesses!")
+            break
