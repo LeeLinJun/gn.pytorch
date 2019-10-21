@@ -66,7 +66,7 @@ if __name__ == "__main__":
                 init_graph_features(G1, graph_feat_size, node_feat_size,
                                     edge_feat_size, cuda=True, bs=200)
                 load_graph_features(G1, action, last_state, delta_state, bs=200,
-                                    noise=0.003, std=std)
+                                    noise=0.00, std=std)
                 G_out = gn(in_normalizer.normalize(G1))
 
                 init_graph_features(G_target, graph_feat_size, node_feat_size,
