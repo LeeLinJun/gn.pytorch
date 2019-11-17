@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import torch
 from sparse_rrt.planners import SST
-
+from matplotlib import pyplot as plt
 
 class Acrobot_GN(Acrobot):
     '''
@@ -69,11 +69,13 @@ class Acrobot_GN(Acrobot):
         return last_state
 
     def visualize_point(self, state):
-        x = self.LENGTH * np.cos(state[self.STATE_THETA_1] - np.pi / 2) + self.LENGTH * np.cos(state[self.STATE_THETA_1] + state[self.STATE_THETA_2] - np.pi/2)
-        y = self.LENGTH * np.sin(state[self.STATE_THETA_1] - np.pi / 2) + self.LENGTH * np.sin(state[self.STATE_THETA_1] + state[self.STATE_THETA_2] - np.pi / 2)
-        x = (x + 2 * self.LENGTH) / (4 * self.LENGTH)
-        y = (y + 2 * self.LENGTH) / (4 * self.LENGTH)
-        return x, y
+        x2 = self.LENGTH * np.cos(state[self.STATE_THETA_1] - np.pi / 2) + self.LENGTH * np.cos(state[self.STATE_THETA_1] + state[self.STATE_THETA_2] - np.pi/2)
+        y2 = self.LENGTH * np.sin(state[self.STATE_THETA_1] - np.pi / 2) + self.LENGTH * np.sin(state[self.STATE_THETA_1] + state[self.STATE_THETA_2] - np.pi / 2)
+        x1 = self.LENGTH * np.cos(state[self.STATE_THETA_1] - np.pi / 2)
+        y1 = self.LENGTH * np.sin(state[self.STATE_THETA_1] - np.pi / 2)
+        # x2 = (x + 2 * self.LENGTH) / (4 * self.LENGTH)
+        # y2 = (y + 2 * self.LENGTH) / (4 * self.LENGTH)
+        return x1, y1, x2, y2
 
     def get_state_bounds(self):
         return [(self.MIN_ANGLE, self.MAX_ANGLE),
@@ -86,11 +88,12 @@ class Acrobot_GN(Acrobot):
 
 
 if __name__ == '__main__':
-    model = Acrobot_GN()  # Acrobot()  #
+    model_l = Acrobot_GN()  
+    model = Acrobot()  #
     system = Acrobot()
 
     start_state = np.array([0., 0., 0., 0.])
-    goal_state = np.array([1.57, 1.57, 0., 0.])
+    goal_state = np.array([3.14, 0, 0., 0.])
     curr_state = start_state
 
     while True:
@@ -106,23 +109,28 @@ if __name__ == '__main__':
             sst_delta_near=1.,
             sst_delta_drain=0.5,
         )
-        for iteration in range(10000):
+        for iteration in range(20000):
             planner.step(model, 10, 15, 0.05)
             if iteration % 100 == 0:
                 solution = planner.get_solution()
                 print("Solution: %s, Number of nodes: %s" %
                       (solution, planner.get_number_of_nodes()))
                 if solution is not None:
-
                     break
         controls = solution[1]  # path,control,cost
-        for i in range(len(controls)):
-            curr_state = model.propagate(curr_state, controls[i],
-                                         1,
-                                         0.05)
-            if np.linalg.norm(curr_state-solution[0][i]) > 10.0:
-                print("mismatch at %d steps" % i)
-                break
+        # for i in range(len(controls)):
+        #     curr_state = model.propagate(curr_state, controls[i],
+        #                                  1,
+        #                                  0.05)
+        #     if np.linalg.norm(curr_state-solution[0][i]) > 2:
+        #         print("mismatch at %d steps" % i)
+        #         break
+        for state in solution[0]:
+            x1, y1, x2, y2 = model_l.visualize_point(state)
+            plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='gray')
+            plt.scatter(x2, y2, color='orange', s=10)
+
+        plt.show()
 
         if np.linalg.norm(curr_state-goal_state) < 2.0:
             print("sucesses!")
