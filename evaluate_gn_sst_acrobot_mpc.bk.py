@@ -8,8 +8,6 @@ import torch
 from mpc.mpc import QuadCost, GradMethods
 from mpc import mpc
 from matplotlib import pyplot as plt
-from torch.autograd import Variable
-from tqdm import tqdm
 
 class Acrobot_GN(Acrobot):
     '''
@@ -126,22 +124,23 @@ class AcrobotTorch(Acrobot):
     g = 9.81
 
     def propagate(self, start_state, control, num_steps, integration_step):
-        last_state = start_state.clone()
-        derv = integration_step * self._compute_derivatives(last_state, control)
-        state = start_state.clone() + derv
-        if state[0] < -np.pi:
-            state[0] += 2*np.pi
-        elif state[0] > np.pi:
-            state[0] -= 2 * np.pi
-        if state[1] < -np.pi:
-            state[1] += 2*np.pi
-        elif state[1] > np.pi:
-            state[1] -= 2 * np.pi
-        state_ = state.clone()
-        state_[2:] = torch.clamp(
-            state[2:],
-            min=self.MIN_V_1,
-            max=self.MAX_V_1)
+        state = start_state
+        for i in range(num_steps):
+            state += integration_step * self._compute_derivatives(state, control)
+
+            if state[0] < -np.pi:
+                state[0] += 2*np.pi
+            elif state[0] > np.pi:
+                state[0] -= 2 * np.pi
+            if state[1] < -np.pi:
+                state[1] += 2*np.pi
+            elif state[1] > np.pi:
+                state[1] -= 2 * np.pi
+            state_ = state.clone()
+            state_[2:] = torch.clamp(
+                state[2:],
+                min=self.MIN_V_1,
+                max=self.MAX_V_1)
         return state_
 
     def visualize_point(self, state):
@@ -209,23 +208,43 @@ class Acrobot_MPC(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.model = AcrobotTorch()
-        self.dt = 1e-2
+        self.dt = 5e-2
         self.n_state = 4
         self.n_ctrl = 1
         self.lower, self.upper = self.model.MIN_TORQUE, self.model.MAX_TORQUE
-        self.mpc_eps = 1e-2
+        self.mpc_eps = 1e-5
         self.linesearch_decay = 0.1
         self.max_linesearch_iter = 50
 
     def forward(self, x, u):
         return self.model.propagate(x.squeeze(), u, 1, self.dt).unsqueeze(0)
-        # return self.model.propagate(x.squeeze(), u, 1, self.dt).unsqueeze(0) - x
+
+
+class AcrobotStateCost(torch.nn.Module):
+    def __init__(self, target, coef_c=1, coef_t=1):
+        super().__init__()
+        self.dim_control = 1
+        self.dim_angle = 2
+        self.dim_vel = 2
+        self.dim_state = self.dim_angle + self.dim_vel
+        self.target = target
+        self.coef_c = coef_c
+        self.coef_t = coef_t
+
+    def forward(self, xut):
+        # cost(xut), in (B, Cx+Cu+1)
+        states = xut[:, :self.dim_state]
+        control = xut[:, self.dim_state:self.dim_state+self.dim_control]
+        distance = torch.abs(states - self.target)
+        distance[:, :2][distance[:, :2] > np.pi] = np.pi * 2 - distance[:, :2][distance[:, :2] > np.pi]
+        distance = distance ** 2
+        return distance.sum(dim=1, keepdim=True) + control * self.coef_c + self.coef_t
+
 
 
 if __name__ == '__main__':
-    n_batch, T, mpc_T = 1, 1, 50
+    n_batch, T, mpc_T = 1, 10, 20
     dx = Acrobot_MPC()
-    dx.eval()
     # dx = Acrobot_GN_MPC()
 
     def uniform(shape, low, high):
@@ -252,56 +271,74 @@ if __name__ == '__main__':
 
     u_init = None
 
-    # goal_weights = torch.Tensor((10., 10., 0., 0.))
-    # goal_state = torch.Tensor((np.pi, 0., 0, 0.))
-    goal_state = torch.Tensor(path[8])
+    goal_weights = torch.Tensor((10., 10., 0., 0.))
+    goal_state = torch.Tensor((np.pi, 0., 0, 0.))
+    # goal_state = torch.Tensor(path[5])
     # goal_state = torch.Tensor((np.pi/4., 0., 0., 0.))
-    # xinit = torch.tensor((-np.pi/2, 0, 0., 0.)).unsqueeze(0)
+    xinit = torch.tensor((np.pi-np.pi/10, 0, 0., 0.)).unsqueeze(0)
     # xinit = torch.Tensor((-0, -0, 0., 0.)).unsqueeze(0)
-    xinit = torch.Tensor(path[7]).unsqueeze(0)
-    # print(xinit)
+    # xinit = torch.Tensor(path[4]).unsqueeze(0)
+    print(xinit)
+
+    state = x = xinit.clone()
+    ctrl_penalty = 1e-2
+    q = torch.cat((
+        goal_weights,
+        ctrl_penalty*torch.ones(1)
+    ))
+    px = -torch.sqrt(goal_weights)*goal_state
+    p = torch.cat((px, torch.zeros(dx.n_ctrl)))
+    Q = torch.diag(q).unsqueeze(0).unsqueeze(0).repeat(
+        mpc_T, n_batch, 1, 1
+    )
+    p = p.unsqueeze(0).repeat(mpc_T, n_batch, 1)
+
     _, _, xg, yg = dx.model.visualize_point(goal_state.numpy())
     plt.scatter([xg], [yg], color='r', s=10)
 
-    u = torch.zeros(mpc_T).uniform_() * 8 - 4
-    u = Variable(u, requires_grad=True)
-
-    optimizer = torch.optim.Adam([u], lr=3., betas=(0.9, 0.999))
-    it_max = 10000
-
-    for it in range(it_max):
-        x = xinit.clone()
-        states = [x]
-        optimizer.zero_grad()
-        for t in range(mpc_T):
-            with torch.set_grad_enabled(True):
-                states.append(dx(states[-1].clone(), [u[t]]).clone())
-        # torch.cat(cost, dim=0).sum().backward(retain_graph=True)
-        terminal = states[-1]
-        dis = torch.abs(terminal - goal_state.unsqueeze(0))
-        d = dis.clone()
-        d[:, :2] = torch.min(dis[:, :2], 2*np.pi - dis[:, :2])
-        loss = (d**2).sum()
-        loss.backward(retain_graph=True)
-        optimizer.step()
-        print(loss.item())
-        if loss.item() < dx.mpc_eps:
+    for i in range(T):
+        print(i)
+        x = state.clone()
+        nominal_states, nominal_actions, nominal_objs = mpc.MPC(dx.n_state, dx.n_ctrl, mpc_T,
+                                                                u_init=u_init,
+                                                                u_lower=dx.lower, u_upper=dx.upper,
+                                                                lqr_iter=500,
+                                                                verbose=0,
+                                                                exit_unconverged=False,
+                                                                detach_unconverged=False,
+                                                                linesearch_decay=dx.linesearch_decay,
+                                                                max_linesearch_iter=dx.max_linesearch_iter,
+                                                                grad_method=GradMethods.AUTO_DIFF,
+                                                                eps=dx.mpc_eps,
+                                                                n_batch=1,
+                                                                ).cuda()(x, QuadCost(Q, p), dx)
+                                                                # ).cuda()(x, AcrobotStateCost(goal_state.unsqueeze(0), coef_c=1e-2), dx)
+        x1, y1, x2, y2 = dx.model.visualize_point(state.detach().cpu().numpy()[0])
+        print(nominal_objs)
+        plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='gray')
+        if (x2 - xg)**2 + (y2 - yg)**2 <0.2:
             break
 
-    x = xinit.clone()
-    for control in u:
+        next_action = nominal_actions[0]
+        u_init = torch.cat((nominal_actions[1:], torch.zeros(1, n_batch, dx.n_ctrl)), dim=0)
+        u_init[-2] = u_init[-3]
         with torch.no_grad():
-            x = dx(x, [control])
-            x1, y1, x2, y2 = dx.model.visualize_point(x.detach().cpu().numpy()[0])
-            plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='gray')
-            plt.scatter([x2], [y2], color='yellow', s=10)
+            state = dx(state, next_action)
+        # print(state)
+        # plt.scatter([x1, x2], [y1, y2], color='orange', s=10)
+        # print(state)
+
+    # for state in nominal_states:
+    #     x1, y1, x2, y2 = dx.model.visualize_point(state.detach().cpu().numpy()[0])
+    #     plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='gray')
+    #     plt.scatter([x1, x2], [y1, y2], color='orange', s=10)
 
     x1, y1, x2, y2 = dx.model.visualize_point(xinit.detach().cpu().numpy()[0])
     plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='blue')
-    # x1, y1, x2, y2 = dx.model.visualize_point(xinit.numpy()[0])
-    # plt.scatter([x2], [y2], color='g', s=10)
+    x1, y1, x2, y2 = dx.model.visualize_point(xinit.numpy()[0])
+    plt.scatter([x2], [y2], color='g', s=10)
 
-    x1, y1, x2, y2 = dx.model.visualize_point(states[-1].detach().cpu().numpy()[0])
+    x1, y1, x2, y2 = dx.model.visualize_point(state.detach().cpu().numpy()[0])
     plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='black')
     plt.scatter([x2], [y2], color='orange', s=10)
     plt.axis('equal')

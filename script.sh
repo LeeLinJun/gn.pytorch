@@ -1,3 +1,3 @@
 #!/bin/bash
 conda activate robotics
-optirun python "$@"
+optirun /home/lilinjun/.conda/envs/robotics/bin/python "$@"

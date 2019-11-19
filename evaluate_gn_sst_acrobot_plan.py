@@ -94,9 +94,11 @@ if __name__ == '__main__':
 
     start_state = np.array([0., 0., 0., 0.])
     goal_state = np.array([3.14, 0, 0., 0.])
-    curr_state = start_state
+    curr_state = start_state.copy()
+    curr_state_bk = curr_state.copy()
 
     while True:
+        curr_state = curr_state_bk.copy()
         print("Current state:", curr_state)
         planner = SST(
             state_bounds=model.get_state_bounds(),
@@ -104,13 +106,13 @@ if __name__ == '__main__':
             distance=model.distance_computer(),
             start_state=curr_state,
             goal_state=goal_state,
-            goal_radius=2.0,
+            goal_radius=1.0,
             random_seed=0,
             sst_delta_near=1.,
             sst_delta_drain=0.5,
         )
-        for iteration in range(20000):
-            planner.step(model, 10, 15, 0.05)
+        for iteration in range(50000):
+            planner.step(model, 10, 10, 0.05)
             if iteration % 100 == 0:
                 solution = planner.get_solution()
                 print("Solution: %s, Number of nodes: %s" %
@@ -118,20 +120,24 @@ if __name__ == '__main__':
                 if solution is not None:
                     break
         controls = solution[1]  # path,control,cost
-        # for i in range(len(controls)):
-        #     curr_state = model.propagate(curr_state, controls[i],
-        #                                  1,
-        #                                  0.05)
-        #     if np.linalg.norm(curr_state-solution[0][i]) > 2:
-        #         print("mismatch at %d steps" % i)
-        #         break
+        for i in range(len(controls)):
+            curr_state_bk = model.propagate(curr_state_bk, controls[i],
+                                            10,
+                                            0.05)
+            print(curr_state_bk, solution[0][i+1])
+            if np.linalg.norm(curr_state_bk-solution[0][i+1]) > 2:
+                print("mismatch at %d steps" % i)
+                break
+
         for state in solution[0]:
             x1, y1, x2, y2 = model_l.visualize_point(state)
             plt.plot([0]+[x1]+[x2], [0]+[y1]+[y2], color='gray')
             plt.scatter(x2, y2, color='orange', s=10)
+            # plt.show()
+        _, _, xg, yg = model_l.visualize_point(goal_state)
 
         plt.show()
-
-        if np.linalg.norm(curr_state-goal_state) < 2.0:
+        print(model.distance_computer())
+        if (x2-xg)**2+(y2-yg)**2 < 1.0:
             print("sucesses!")
             break
